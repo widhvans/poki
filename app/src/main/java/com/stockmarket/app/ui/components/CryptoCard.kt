@@ -97,6 +97,7 @@ fun CryptoCard(
 @Composable
 fun CryptoRow(
     cryptos: List<Crypto>,
+    onCryptoClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     androidx.compose.foundation.lazy.LazyRow(
@@ -105,7 +106,11 @@ fun CryptoRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(cryptos.size) { index ->
-            CryptoCard(crypto = cryptos[index])
+            val crypto = cryptos[index]
+            CryptoCard(
+                crypto = crypto,
+                onClick = { onCryptoClick(crypto.id) }
+            )
         }
     }
 }

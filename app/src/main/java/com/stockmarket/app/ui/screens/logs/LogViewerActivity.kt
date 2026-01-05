@@ -245,22 +245,41 @@ data class LogEntry(
 
 suspend fun loadLogs(): List<LogEntry> = withContext(Dispatchers.IO) {
     val logs = mutableListOf<LogEntry>()
+    
+    // Tags to capture for app logs
+    val appTags = listOf(
+        "stockmarket", "StockRepository", "HomeViewModel", "ChartViewModel",
+        "SearchViewModel", "MainActivity", "StockMarket", "Koin", 
+        "OkHttp", "Retrofit", "CoinGecko", "Yahoo", "API", "Network",
+        "Navigation", "Compose", "Room", "Database"
+    )
+    
     try {
+        // Get app's process ID for filtering
+        val pid = android.os.Process.myPid().toString()
         val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "brief"))
         val reader = BufferedReader(InputStreamReader(process.inputStream))
         
         reader.useLines { lines ->
             lines.forEach { line ->
                 val parsed = parseLogLine(line)
-                if (parsed != null && parsed.tag.contains("stockmarket", ignoreCase = true)) {
-                    logs.add(parsed)
+                if (parsed != null) {
+                    // Include logs that match app tags OR contain app package reference
+                    val isAppLog = appTags.any { tag -> 
+                        parsed.tag.contains(tag, ignoreCase = true) ||
+                        parsed.message.contains(tag, ignoreCase = true)
+                    } || parsed.tag.contains("com.stockmarket", ignoreCase = true)
+                    
+                    if (isAppLog) {
+                        logs.add(parsed)
+                    }
                 }
             }
         }
         
-        // Keep last 500 logs
-        if (logs.size > 500) {
-            return@withContext logs.takeLast(500)
+        // Keep last 1000 logs for comprehensive analysis
+        if (logs.size > 1000) {
+            return@withContext logs.takeLast(1000)
         }
     } catch (e: Exception) {
         logs.add(LogEntry("E", "LogViewer", "Failed to load logs: ${e.message}"))

@@ -8,6 +8,7 @@ import com.stockmarket.app.data.repository.StockRepository
 import com.stockmarket.app.domain.models.Crypto
 import com.stockmarket.app.domain.models.MarketIndex
 import com.stockmarket.app.domain.models.Stock
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,105 +43,97 @@ class HomeViewModel(
     }
     
     fun loadData() {
-        Log.d(TAG, "🔄 loadData() called - Starting to fetch all home data...")
+        val startTime = System.currentTimeMillis()
+        Log.d(TAG, "🔄 loadData() called - Starting PARALLEL fetch of all home data...")
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
-            // Load market indices
-            Log.d(TAG, "📊 Fetching market indices...")
-            when (val result = repository.getMarketIndices()) {
+            // Launch all API calls in parallel using async
+            val indicesDeferred = async { 
+                Log.d(TAG, "📊 [ASYNC] Fetching market indices...")
+                repository.getMarketIndices() 
+            }
+            val moversDeferred = async { 
+                Log.d(TAG, "📊 [ASYNC] Fetching top movers...")
+                repository.getTopMovers() 
+            }
+            val nifty50Deferred = async { 
+                Log.d(TAG, "📊 [ASYNC] Fetching NIFTY 50...")
+                repository.getNifty50() 
+            }
+            val cryptoDeferred = async { 
+                Log.d(TAG, "💰 [ASYNC] Fetching cryptocurrencies...")
+                repository.getCryptos() 
+            }
+            
+            // Await all results
+            val indicesResult = indicesDeferred.await()
+            val moversResult = moversDeferred.await()
+            val nifty50Result = nifty50Deferred.await()
+            val cryptoResult = cryptoDeferred.await()
+            
+            val elapsed = System.currentTimeMillis() - startTime
+            Log.d(TAG, "⏱️ All API calls completed in ${elapsed}ms")
+            
+            // Process indices
+            when (indicesResult) {
                 is Result.Success -> {
-                    Log.d(TAG, "✅ Market indices loaded: ${result.data.size} items")
-                    result.data.forEach { index ->
-                        Log.d(TAG, "  📈 ${index.displayName}: ${index.lastPrice} (${index.formattedChange})")
-                    }
-                    _uiState.value = _uiState.value.copy(indices = result.data)
+                    Log.d(TAG, "✅ Market indices: ${indicesResult.data.size} items")
+                    _uiState.value = _uiState.value.copy(indices = indicesResult.data)
                 }
-                is Result.Error -> {
-                    Log.e(TAG, "❌ Failed to load market indices: ${result.message}")
-                    Log.e(TAG, "❌ Exception: ${result.exception?.javaClass?.simpleName}")
-                }
+                is Result.Error -> Log.e(TAG, "❌ Indices failed: ${indicesResult.message}")
                 else -> {}
             }
             
-            // Load top movers
-            Log.d(TAG, "📊 Fetching top movers...")
-            when (val result = repository.getTopMovers()) {
+            // Process top movers
+            when (moversResult) {
                 is Result.Success -> {
-                    val (gainers, losers) = result.data
-                    Log.d(TAG, "✅ Top movers loaded - Gainers: ${gainers.size}, Losers: ${losers.size}")
-                    gainers.take(3).forEach { stock ->
-                        Log.d(TAG, "  🟢 Gainer: ${stock.symbol} +${stock.formattedPercentChange}")
-                    }
-                    losers.take(3).forEach { stock ->
-                        Log.d(TAG, "  🔴 Loser: ${stock.symbol} ${stock.formattedPercentChange}")
-                    }
+                    val (gainers, losers) = moversResult.data
+                    Log.d(TAG, "✅ Top movers: ${gainers.size} gainers, ${losers.size} losers")
                     _uiState.value = _uiState.value.copy(
                         topGainers = gainers.take(5),
                         topLosers = losers.take(5)
                     )
                 }
-                is Result.Error -> {
-                    Log.e(TAG, "❌ Failed to load top movers: ${result.message}")
-                }
+                is Result.Error -> Log.e(TAG, "❌ Movers failed: ${moversResult.message}")
                 else -> {}
             }
             
-            // Load NIFTY 50 stocks
-            Log.d(TAG, "📊 Fetching NIFTY 50 stocks...")
-            when (val result = repository.getNifty50()) {
+            // Process NIFTY 50
+            when (nifty50Result) {
                 is Result.Success -> {
-                    Log.d(TAG, "✅ NIFTY 50 loaded: ${result.data.size} stocks")
-                    result.data.take(5).forEach { stock ->
-                        Log.d(TAG, "  📊 ${stock.symbol}: ₹${stock.formattedPrice} (${stock.formattedPercentChange})")
-                    }
-                    _uiState.value = _uiState.value.copy(
-                        nifty50Stocks = result.data,
-                        isLoading = false
-                    )
-                    Log.d(TAG, "✅ All data loaded successfully!")
+                    Log.d(TAG, "✅ NIFTY 50: ${nifty50Result.data.size} stocks")
+                    _uiState.value = _uiState.value.copy(nifty50Stocks = nifty50Result.data)
                 }
                 is Result.Error -> {
-                    Log.e(TAG, "❌ Failed to load NIFTY 50: ${result.message}")
-                    Log.e(TAG, "❌ Exception: ${result.exception?.javaClass?.simpleName}")
-                    Log.e(TAG, "❌ Stack trace: ${result.exception?.stackTraceToString()?.take(500)}")
-                    
+                    Log.e(TAG, "❌ NIFTY 50 failed: ${nifty50Result.message}")
                     val showError = _uiState.value.indices.isEmpty() && _uiState.value.topGainers.isEmpty()
-                    Log.d(TAG, "⚠️ Show error to user: $showError")
-                    
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = if (showError) result.message else null
-                    )
-                }
-                else -> {}
-            }
-            
-            // Load Cryptocurrencies
-            Log.d(TAG, "💰 Fetching cryptocurrencies...")
-            when (val result = repository.getCryptos()) {
-                is Result.Success -> {
-                    Log.d(TAG, "✅ Cryptos loaded: ${result.data.size} coins")
-                    result.data.take(3).forEach { crypto ->
-                        Log.d(TAG, "  🪙 ${crypto.symbol}: ${crypto.formattedPrice} (${crypto.formattedChange})")
+                    if (showError) {
+                        _uiState.value = _uiState.value.copy(error = nifty50Result.message)
                     }
-                    _uiState.value = _uiState.value.copy(cryptos = result.data)
-                }
-                is Result.Error -> {
-                    Log.e(TAG, "❌ Failed to load cryptos: ${result.message}")
                 }
                 else -> {}
             }
             
-            // Final state
-            Log.d(TAG, "📊 FINAL STATE:")
+            // Process cryptos
+            when (cryptoResult) {
+                is Result.Success -> {
+                    Log.d(TAG, "✅ Cryptos: ${cryptoResult.data.size} coins")
+                    _uiState.value = _uiState.value.copy(cryptos = cryptoResult.data)
+                }
+                is Result.Error -> Log.e(TAG, "❌ Cryptos failed: ${cryptoResult.message}")
+                else -> {}
+            }
+            
+            // Mark loading complete
+            _uiState.value = _uiState.value.copy(isLoading = false)
+            
+            val totalElapsed = System.currentTimeMillis() - startTime
+            Log.d(TAG, "📊 FINAL STATE (${totalElapsed}ms total):")
             Log.d(TAG, "  - Indices: ${_uiState.value.indices.size}")
-            Log.d(TAG, "  - Top Gainers: ${_uiState.value.topGainers.size}")
-            Log.d(TAG, "  - Top Losers: ${_uiState.value.topLosers.size}")
-            Log.d(TAG, "  - NIFTY 50 Stocks: ${_uiState.value.nifty50Stocks.size}")
+            Log.d(TAG, "  - Gainers/Losers: ${_uiState.value.topGainers.size}/${_uiState.value.topLosers.size}")
+            Log.d(TAG, "  - NIFTY 50: ${_uiState.value.nifty50Stocks.size}")
             Log.d(TAG, "  - Cryptos: ${_uiState.value.cryptos.size}")
-            Log.d(TAG, "  - Error: ${_uiState.value.error ?: "none"}")
-            Log.d(TAG, "  - Is Loading: ${_uiState.value.isLoading}")
         }
     }
     

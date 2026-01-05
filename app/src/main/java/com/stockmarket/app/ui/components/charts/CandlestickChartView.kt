@@ -234,11 +234,13 @@ private fun createCombinedChart(context: Context): CombinedChart {
         }
         
         setTouchEnabled(true)
-        isDragEnabled = true
+        isDragEnabled = true // 1-finger drag to scroll
         setScaleEnabled(true)
-        setPinchZoom(false) // Disable pinch zoom for unified, enable separate X/Y
-        isScaleXEnabled = true
-        isScaleYEnabled = true // Enable vertical zoom for candle size adjustment
+        setPinchZoom(true) // 2-finger pinch to zoom in/out uniformly
+        isScaleXEnabled = true // Allow X zoom
+        isScaleYEnabled = true // Allow Y zoom (vertical)
+        isDragDecelerationEnabled = true // Smooth scrolling
+        setDragDecelerationFrictionCoef(0.9f)
         animateX(500)
         
         // Extra right offset to prevent latest candle cutoff

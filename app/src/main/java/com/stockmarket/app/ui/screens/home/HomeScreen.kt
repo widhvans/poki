@@ -115,7 +115,10 @@ fun HomeScreen(
                         onActionClick = { onViewAllClick("crypto") }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    CryptoRow(cryptos = uiState.cryptos.take(20))
+                    CryptoRow(
+                        cryptos = uiState.cryptos.take(20),
+                        onCryptoClick = { cryptoId -> onStockClick(cryptoId) }
+                    )
                 }
             }
             
