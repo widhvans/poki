@@ -338,8 +338,6 @@ class StockRepository(
         }
     }
     
-    // ============= Stock Lists =============
-    
     /**
      * Get NIFTY 50 stocks
      */
@@ -355,15 +353,122 @@ class StockRepository(
                 Log.d(TAG, "✅ Got ${stocks.size} NIFTY 50 stocks")
                 Result.Success(stocks)
             } else {
-                Log.e(TAG, "❌ NIFTY 50 API failed: ${response.code()}")
-                Log.e(TAG, "❌ Error body: ${response.errorBody()?.string()}")
-                Result.Error("Failed to fetch NIFTY 50")
+                Log.w(TAG, "⚠️ Primary API failed, using Yahoo Finance fallback...")
+                getNifty50FromYahoo()
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ NIFTY 50 exception: ${e.javaClass.simpleName}: ${e.message}", e)
-            Result.Error("Failed to fetch NIFTY 50: ${e.message}", e)
+            Log.w(TAG, "⚠️ Trying Yahoo Finance fallback...")
+            getNifty50FromYahoo()
         }
     }
+    
+    /**
+     * NIFTY 50 stock symbols with company names
+     */
+    private val nifty50Symbols = mapOf(
+        "RELIANCE" to "Reliance Industries",
+        "TCS" to "Tata Consultancy Services",
+        "HDFCBANK" to "HDFC Bank",
+        "INFY" to "Infosys",
+        "ICICIBANK" to "ICICI Bank",
+        "HINDUNILVR" to "Hindustan Unilever",
+        "ITC" to "ITC Limited",
+        "SBIN" to "State Bank of India",
+        "BHARTIARTL" to "Bharti Airtel",
+        "KOTAKBANK" to "Kotak Mahindra Bank",
+        "LT" to "Larsen & Toubro",
+        "AXISBANK" to "Axis Bank",
+        "ASIANPAINT" to "Asian Paints",
+        "MARUTI" to "Maruti Suzuki",
+        "HCLTECH" to "HCL Technologies",
+        "SUNPHARMA" to "Sun Pharma",
+        "TITAN" to "Titan Company",
+        "BAJFINANCE" to "Bajaj Finance",
+        "WIPRO" to "Wipro",
+        "ULTRACEMCO" to "UltraTech Cement",
+        "ONGC" to "ONGC",
+        "NTPC" to "NTPC",
+        "POWERGRID" to "Power Grid Corp",
+        "M&M" to "Mahindra & Mahindra",
+        "TATAMOTORS" to "Tata Motors",
+        "JSWSTEEL" to "JSW Steel",
+        "TATASTEEL" to "Tata Steel",
+        "ADANIENT" to "Adani Enterprises",
+        "ADANIPORTS" to "Adani Ports",
+        "COALINDIA" to "Coal India"
+    )
+    
+    /**
+     * Fallback to Yahoo Finance for NIFTY 50 stocks
+     */
+    private suspend fun getNifty50FromYahoo(): Result<List<Stock>> {
+        Log.d(TAG, "🔄 Getting NIFTY 50 from Yahoo Finance...")
+        val stocks = mutableListOf<Stock>()
+        
+        // Fetch top 15 stocks to avoid too many API calls
+        val topStocks = nifty50Symbols.entries.take(15)
+        
+        for ((symbol, companyName) in topStocks) {
+            try {
+                val yahooSymbol = "$symbol.NS"
+                val response = yahooService.getChartData(yahooSymbol, "1d", "1m")
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!.chart.result?.firstOrNull()
+                    if (data != null) {
+                        val quote = data.indicators.quote.firstOrNull()
+                        val closes = quote?.close?.filterNotNull() ?: emptyList()
+                        
+                        val lastPrice = closes.lastOrNull() ?: data.meta.regularMarketPrice
+                        val prevClose = data.meta.previousClose
+                        val change = lastPrice - prevClose
+                        val percentChange = if (prevClose != 0.0) (change / prevClose) * 100 else 0.0
+                        
+                        stocks.add(
+                            Stock(
+                                symbol = symbol,
+                                companyName = companyName,
+                                lastPrice = lastPrice,
+                                change = change,
+                                percentChange = percentChange,
+                                previousClose = prevClose
+                            )
+                        )
+                        Log.d(TAG, "✅ Yahoo: $symbol @ $lastPrice")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to get $symbol: ${e.message}")
+            }
+        }
+        
+        Log.d(TAG, "📊 Total NIFTY 50 stocks from Yahoo: ${stocks.size}")
+        return if (stocks.isNotEmpty()) {
+            Result.Success(stocks)
+        } else {
+            Log.e(TAG, "❌ Failed to fetch any stocks from Yahoo")
+            Result.Error("Failed to fetch NIFTY 50 stocks")
+        }
+    }
+    
+    /**
+     * Bank NIFTY stock symbols
+     */
+    private val bankNiftySymbols = mapOf(
+        "HDFCBANK" to "HDFC Bank",
+        "ICICIBANK" to "ICICI Bank",
+        "SBIN" to "State Bank of India",
+        "KOTAKBANK" to "Kotak Mahindra Bank",
+        "AXISBANK" to "Axis Bank",
+        "INDUSINDBK" to "IndusInd Bank",
+        "BANDHANBNK" to "Bandhan Bank",
+        "FEDERALBNK" to "Federal Bank",
+        "IDFCFIRSTB" to "IDFC First Bank",
+        "PNB" to "Punjab National Bank",
+        "BANKBARODA" to "Bank of Baroda",
+        "AUBANK" to "AU Small Finance Bank"
+    )
     
     /**
      * Get Bank NIFTY stocks
@@ -378,14 +483,56 @@ class StockRepository(
                 Log.d(TAG, "✅ Got Bank NIFTY stocks")
                 Result.Success(response.body()!!.data.map { it.toDomainModel() })
             } else {
-                Log.e(TAG, "❌ Bank NIFTY API failed")
-                Result.Error("Failed to fetch Bank NIFTY")
+                Log.w(TAG, "⚠️ Using Yahoo fallback for Bank NIFTY...")
+                getStocksFromYahoo(bankNiftySymbols, "Bank NIFTY")
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Bank NIFTY exception: ${e.message}", e)
-            Result.Error("Failed to fetch Bank NIFTY: ${e.message}", e)
+            getStocksFromYahoo(bankNiftySymbols, "Bank NIFTY")
         }
     }
+    
+    /**
+     * Sector stock symbols
+     */
+    private val sectorStocks = mapOf(
+        "IT" to mapOf(
+            "TCS" to "Tata Consultancy Services",
+            "INFY" to "Infosys",
+            "WIPRO" to "Wipro",
+            "HCLTECH" to "HCL Technologies",
+            "TECHM" to "Tech Mahindra",
+            "LTIM" to "LTIMindtree"
+        ),
+        "PHARMA" to mapOf(
+            "SUNPHARMA" to "Sun Pharma",
+            "DRREDDY" to "Dr. Reddy's",
+            "DIVISLAB" to "Divi's Labs",
+            "CIPLA" to "Cipla",
+            "APOLLOHOSP" to "Apollo Hospitals"
+        ),
+        "AUTO" to mapOf(
+            "MARUTI" to "Maruti Suzuki",
+            "TATAMOTORS" to "Tata Motors",
+            "M&M" to "Mahindra & Mahindra",
+            "BAJAJ-AUTO" to "Bajaj Auto",
+            "HEROMOTOCO" to "Hero MotoCorp"
+        ),
+        "FMCG" to mapOf(
+            "HINDUNILVR" to "Hindustan Unilever",
+            "ITC" to "ITC Limited",
+            "NESTLEIND" to "Nestle India",
+            "BRITANNIA" to "Britannia",
+            "DABUR" to "Dabur India"
+        ),
+        "METAL" to mapOf(
+            "TATASTEEL" to "Tata Steel",
+            "JSWSTEEL" to "JSW Steel",
+            "HINDALCO" to "Hindalco",
+            "COALINDIA" to "Coal India",
+            "VEDL" to "Vedanta"
+        )
+    )
     
     /**
      * Get stocks by sector
@@ -400,12 +547,63 @@ class StockRepository(
                 Log.d(TAG, "✅ Got sector stocks")
                 Result.Success(response.body()!!.data.map { it.toDomainModel() })
             } else {
-                Log.e(TAG, "❌ Sector API failed")
-                Result.Error("Failed to fetch ${sector.displayName} stocks")
+                Log.w(TAG, "⚠️ Using Yahoo fallback for ${sector.displayName}...")
+                val symbols = sectorStocks[sector.apiValue.uppercase()] ?: emptyMap()
+                getStocksFromYahoo(symbols, sector.displayName)
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Sector exception: ${e.message}", e)
-            Result.Error("Failed to fetch sector stocks: ${e.message}", e)
+            val symbols = sectorStocks[sector.apiValue.uppercase()] ?: emptyMap()
+            getStocksFromYahoo(symbols, sector.displayName)
+        }
+    }
+    
+    /**
+     * Generic helper to fetch stocks from Yahoo Finance
+     */
+    private suspend fun getStocksFromYahoo(
+        symbolMap: Map<String, String>,
+        category: String
+    ): Result<List<Stock>> {
+        Log.d(TAG, "🔄 Getting $category from Yahoo Finance...")
+        val stocks = mutableListOf<Stock>()
+        
+        for ((symbol, companyName) in symbolMap) {
+            try {
+                val yahooSymbol = "$symbol.NS"
+                val response = yahooService.getChartData(yahooSymbol, "1d", "1m")
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!.chart.result?.firstOrNull()
+                    if (data != null) {
+                        val lastPrice = data.meta.regularMarketPrice
+                        val prevClose = data.meta.previousClose
+                        val change = lastPrice - prevClose
+                        val percentChange = if (prevClose != 0.0) (change / prevClose) * 100 else 0.0
+                        
+                        stocks.add(
+                            Stock(
+                                symbol = symbol,
+                                companyName = companyName,
+                                lastPrice = lastPrice,
+                                change = change,
+                                percentChange = percentChange,
+                                previousClose = prevClose
+                            )
+                        )
+                        Log.d(TAG, "✅ Yahoo: $symbol @ $lastPrice")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to get $symbol: ${e.message}")
+            }
+        }
+        
+        Log.d(TAG, "📊 Total $category stocks from Yahoo: ${stocks.size}")
+        return if (stocks.isNotEmpty()) {
+            Result.Success(stocks)
+        } else {
+            Result.Error("Failed to fetch $category stocks")
         }
     }
     
