@@ -432,7 +432,11 @@ class StockRepository(
                                 lastPrice = lastPrice,
                                 change = change,
                                 percentChange = percentChange,
-                                previousClose = prevClose
+                                open = lastPrice,
+                                dayHigh = lastPrice,
+                                dayLow = lastPrice,
+                                previousClose = prevClose,
+                                volume = 0L
                             )
                         )
                         Log.d(TAG, "✅ Yahoo: $symbol @ $lastPrice")
@@ -588,7 +592,11 @@ class StockRepository(
                                 lastPrice = lastPrice,
                                 change = change,
                                 percentChange = percentChange,
-                                previousClose = prevClose
+                                open = lastPrice,
+                                dayHigh = lastPrice,
+                                dayLow = lastPrice,
+                                previousClose = prevClose,
+                                volume = 0L
                             )
                         )
                         Log.d(TAG, "✅ Yahoo: $symbol @ $lastPrice")
