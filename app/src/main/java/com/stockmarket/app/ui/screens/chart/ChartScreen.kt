@@ -203,6 +203,7 @@ private fun StockPriceHeader(stock: Stock) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimeframeSelectorRow(
     selectedTimeframe: ChartTimeframe,
@@ -233,6 +234,7 @@ private fun TimeframeSelectorRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun IndicatorToggles(
     showVolume: Boolean,
@@ -290,6 +292,7 @@ private fun IndicatorToggles(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun IndicatorChip(
     label: String,
@@ -311,13 +314,7 @@ private fun IndicatorChip(
             selectedLabelColor = color,
             containerColor = SurfaceLight,
             labelColor = TextSecondary
-        ),
-        border = if (selected) FilterChipDefaults.filterChipBorder(
-            enabled = true,
-            selected = true,
-            borderColor = color,
-            selectedBorderColor = color
-        ) else null
+        )
     )
 }
 

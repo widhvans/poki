@@ -91,7 +91,7 @@ fun SearchScreen(
                         result = result,
                         onClick = { onStockClick(result.symbol) }
                     )
-                    HorizontalDivider(
+                    Divider(
                         color = SurfaceLight,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )

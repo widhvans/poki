@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +20,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.stockmarket.app.domain.models.MarketIndex
 import com.stockmarket.app.domain.models.Stock
 import com.stockmarket.app.ui.theme.*
@@ -53,7 +51,6 @@ fun StockCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left - Symbol and Company Name
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -74,7 +71,6 @@ fun StockCard(
             
             Spacer(modifier = Modifier.width(8.dp))
             
-            // Right - Price and Change
             Column(
                 horizontalAlignment = Alignment.End
             ) {
@@ -103,7 +99,6 @@ fun StockCard(
                 }
             }
             
-            // Watchlist button
             if (onWatchlistClick != null) {
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = onWatchlistClick) {
@@ -338,6 +333,7 @@ fun SectionHeader(
 /**
  * Timeframe Selector Chips
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimeframeSelector(
     selectedTimeframe: String,

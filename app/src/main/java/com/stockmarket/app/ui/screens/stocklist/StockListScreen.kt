@@ -6,8 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -100,7 +98,7 @@ fun StockListScreen(
                                 stock = stock,
                                 onClick = { onStockClick(stock.symbol) }
                             )
-                            HorizontalDivider(
+                            Divider(
                                 color = SurfaceLight,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
@@ -120,6 +118,7 @@ fun StockListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SectorFilterRow(
     selectedSector: Sector,
