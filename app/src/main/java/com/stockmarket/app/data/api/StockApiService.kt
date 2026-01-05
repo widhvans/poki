@@ -136,3 +136,62 @@ data class YahooError(
     val code: String,
     val description: String
 )
+
+/**
+ * CoinGecko API for cryptocurrency data (Free tier - no API key needed)
+ */
+interface CoinGeckoService {
+    
+    companion object {
+        const val BASE_URL = "https://api.coingecko.com/api/v3/"
+    }
+    
+    /**
+     * Get simple price for multiple coins
+     */
+    @GET("simple/price")
+    suspend fun getSimplePrice(
+        @Query("ids") ids: String, // comma separated: bitcoin,ethereum,solana
+        @Query("vs_currencies") currencies: String = "inr",
+        @Query("include_24hr_change") include24hChange: Boolean = true,
+        @Query("include_market_cap") includeMarketCap: Boolean = true
+    ): Response<Map<String, CoinGeckoPrice>>
+    
+    /**
+     * Get list of coins with market data
+     */
+    @GET("coins/markets")
+    suspend fun getMarkets(
+        @Query("vs_currency") currency: String = "inr",
+        @Query("order") order: String = "market_cap_desc",
+        @Query("per_page") perPage: Int = 20,
+        @Query("page") page: Int = 1,
+        @Query("sparkline") sparkline: Boolean = false
+    ): Response<List<CoinGeckoMarket>>
+}
+
+/**
+ * CoinGecko price response
+ */
+data class CoinGeckoPrice(
+    val inr: Double?,
+    val inr_24h_change: Double?,
+    val inr_market_cap: Double?
+)
+
+/**
+ * CoinGecko market data
+ */
+data class CoinGeckoMarket(
+    val id: String,
+    val symbol: String,
+    val name: String,
+    val image: String?,
+    val current_price: Double?,
+    val market_cap: Double?,
+    val market_cap_rank: Int?,
+    val price_change_percentage_24h: Double?,
+    val total_volume: Double?,
+    val high_24h: Double?,
+    val low_24h: Double?
+)

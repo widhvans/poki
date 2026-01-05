@@ -139,3 +139,25 @@ data class WatchlistItem(
     val addedAt: Long,
     val stock: Stock? = null // Optional live data
 )
+
+/**
+ * Cryptocurrency data model
+ */
+data class Crypto(
+    val id: String,
+    val symbol: String,
+    val name: String,
+    val currentPrice: Double,
+    val priceChange24h: Double,
+    val marketCap: Double?,
+    val imageUrl: String? = null
+) {
+    val isPositive: Boolean
+        get() = priceChange24h >= 0
+    
+    val formattedPrice: String
+        get() = "₹%.2f".format(currentPrice)
+    
+    val formattedChange: String
+        get() = "${if (priceChange24h >= 0) "+" else ""}%.2f%%".format(priceChange24h)
+}

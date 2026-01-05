@@ -1,5 +1,6 @@
 package com.stockmarket.app.di
 
+import com.stockmarket.app.data.api.CoinGeckoService
 import com.stockmarket.app.data.api.StockApiService
 import com.stockmarket.app.data.api.YahooFinanceService
 import com.stockmarket.app.data.local.StockDatabase
@@ -54,11 +55,21 @@ val appModule = module {
             .create(YahooFinanceService::class.java)
     }
     
+    // Retrofit for CoinGecko (Crypto)
+    single<CoinGeckoService> {
+        Retrofit.Builder()
+            .baseUrl(CoinGeckoService.BASE_URL)
+            .client(get())
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(CoinGeckoService::class.java)
+    }
+    
     // Database
     single { StockDatabase.getInstance(androidContext()) }
     
-    // Repository
-    single { StockRepository(get(), get(), get()) }
+    // Repository (includes crypto service now)
+    single { StockRepository(get(), get(), get(), get()) }
     
     // ViewModels
     viewModel { HomeViewModel(get()) }

@@ -1,6 +1,7 @@
 package com.stockmarket.app.data.repository
 
 import android.util.Log
+import com.stockmarket.app.data.api.CoinGeckoService
 import com.stockmarket.app.data.api.StockApiService
 import com.stockmarket.app.data.api.YahooFinanceService
 import com.stockmarket.app.data.api.models.*
@@ -26,6 +27,7 @@ sealed class Result<out T> {
 class StockRepository(
     private val apiService: StockApiService,
     private val yahooService: YahooFinanceService,
+    private val cryptoService: CoinGeckoService,
     private val database: StockDatabase
 ) {
     private val watchlistDao = database.watchlistDao()
@@ -364,9 +366,10 @@ class StockRepository(
     }
     
     /**
-     * NIFTY 50 stock symbols with company names
+     * NIFTY 50 + Popular NSE stock symbols with company names (80+ stocks)
      */
     private val nifty50Symbols = mapOf(
+        // NIFTY 50 - Complete list
         "RELIANCE" to "Reliance Industries",
         "TCS" to "Tata Consultancy Services",
         "HDFCBANK" to "HDFC Bank",
@@ -396,7 +399,57 @@ class StockRepository(
         "TATASTEEL" to "Tata Steel",
         "ADANIENT" to "Adani Enterprises",
         "ADANIPORTS" to "Adani Ports",
-        "COALINDIA" to "Coal India"
+        "COALINDIA" to "Coal India",
+        "BAJAJFINSV" to "Bajaj Finserv",
+        "NESTLEIND" to "Nestle India",
+        "GRASIM" to "Grasim Industries",
+        "TECHM" to "Tech Mahindra",
+        "INDUSINDBK" to "IndusInd Bank",
+        "DRREDDY" to "Dr Reddy's Labs",
+        "DIVISLAB" to "Divi's Laboratories",
+        "CIPLA" to "Cipla",
+        "EICHERMOT" to "Eicher Motors",
+        "APOLLOHOSP" to "Apollo Hospitals",
+        "HEROMOTOCO" to "Hero MotoCorp",
+        "BRITANNIA" to "Britannia Industries",
+        "BPCL" to "BPCL",
+        "TATACONSUM" to "Tata Consumer",
+        "HINDALCO" to "Hindalco Industries",
+        "SBILIFE" to "SBI Life Insurance",
+        "HDFCLIFE" to "HDFC Life",
+        "LTIM" to "LTIMindtree",
+        "SHRIRAMFIN" to "Shriram Finance",
+        // NIFTY NEXT 50 - Popular stocks
+        "ADANIGREEN" to "Adani Green Energy",
+        "VEDL" to "Vedanta",
+        "JINDALSTEL" to "Jindal Steel & Power",
+        "IOC" to "Indian Oil Corp",
+        "GAIL" to "GAIL India",
+        "PIDILITIND" to "Pidilite Industries",
+        "HAVELLS" to "Havells India",
+        "BERGEPAINT" to "Berger Paints",
+        "SIEMENS" to "Siemens India",
+        "DABUR" to "Dabur India",
+        "GODREJCP" to "Godrej Consumer",
+        "MOTHERSON" to "Motherson Sumi",
+        "ZOMATO" to "Zomato",
+        "POLYCAB" to "Polycab India",
+        "ABB" to "ABB India",
+        "TATAPOWER" to "Tata Power",
+        "IRCTC" to "IRCTC",
+        "HAL" to "Hindustan Aeronautics",
+        "BANKBARODA" to "Bank of Baroda",
+        "PNB" to "Punjab National Bank",
+        "CANBK" to "Canara Bank",
+        "RECLTD" to "REC Limited",
+        "PFC" to "Power Finance Corp",
+        "NHPC" to "NHPC",
+        "IRFC" to "Indian Railway Finance",
+        "PAYTM" to "One97 Communications",
+        "NAUKRI" to "Info Edge (Naukri)",
+        "DMART" to "Avenue Supermarts",
+        "MCDOWELL-N" to "United Spirits",
+        "TRENT" to "Trent Limited"
     )
     
     /**
@@ -406,8 +459,8 @@ class StockRepository(
         Log.d(TAG, "🔄 Getting NIFTY 50 from Yahoo Finance...")
         val stocks = mutableListOf<Stock>()
         
-        // Fetch top 15 stocks to avoid too many API calls
-        val topStocks = nifty50Symbols.entries.take(15)
+        // Fetch top 40 stocks for better coverage
+        val topStocks = nifty50Symbols.entries.take(40)
         
         for ((symbol, companyName) in topStocks) {
             try {
@@ -802,3 +855,52 @@ private fun CachedStockEntity.toDomainModel() = Stock(
     previousClose = previousClose,
     volume = volume
 )
+
+    // ============= Cryptocurrency Data =============
+    
+    /**
+     * Get top cryptocurrencies with INR pricing
+     */
+    suspend fun getCryptos(): Result<List<Crypto>> {
+        Log.d(TAG, "💰 getCryptos() called")
+        return try {
+            Log.d(TAG, "🌐 Making CoinGecko API call for crypto markets...")
+            val response = cryptoService.getMarkets(
+                currency = "inr",
+                perPage = 15,
+                page = 1
+            )
+            
+            Log.d(TAG, "📡 CoinGecko Response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+            
+            if (response.isSuccessful && response.body() != null) {
+                val markets = response.body()!!
+                Log.d(TAG, "✅ Got ${markets.size} crypto coins")
+                
+                val cryptos = markets.mapNotNull { market ->
+                    val price = market.current_price ?: return@mapNotNull null
+                    val change24h = market.price_change_percentage_24h ?: 0.0
+                    
+                    Crypto(
+                        id = market.id,
+                        symbol = market.symbol.uppercase(),
+                        name = market.name,
+                        currentPrice = price,
+                        priceChange24h = change24h,
+                        marketCap = market.market_cap,
+                        imageUrl = market.image
+                    )
+                }
+                
+                Log.d(TAG, "📊 Converted to ${cryptos.size} Crypto objects")
+                Result.Success(cryptos)
+            } else {
+                Log.e(TAG, "❌ CoinGecko API failed - code: ${response.code()}")
+                Result.Error("Failed to fetch crypto data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception in getCryptos: ${e.javaClass.simpleName}: ${e.message}", e)
+            Result.Error("Failed to fetch crypto data: ${e.message}", e)
+        }
+    }
+

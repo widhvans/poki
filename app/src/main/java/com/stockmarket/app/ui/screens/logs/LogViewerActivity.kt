@@ -132,7 +132,7 @@ fun LogViewerScreen(onBackClick: () -> Unit) {
                     focusedTextColor = TextPrimary,
                     unfocusedTextColor = TextPrimary,
                     focusedBorderColor = AccentBlue,
-                    unfocusedBorderColor = Border,
+                    unfocusedBorderColor = SurfaceLight,
                     cursorColor = AccentBlue
                 )
             )
