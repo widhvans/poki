@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.stockmarket.app"
-    compileSdk = 34
+    compileSdk = 33
 
     defaultConfig {
         applicationId = "com.stockmarket.app"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0.0"
 
