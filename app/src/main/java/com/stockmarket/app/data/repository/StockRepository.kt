@@ -776,6 +776,54 @@ class StockRepository(
             true
         }
     }
+    
+    // ============= Cryptocurrency Data =============
+    
+    /**
+     * Get top cryptocurrencies with INR pricing
+     */
+    suspend fun getCryptos(): Result<List<Crypto>> {
+        Log.d(TAG, "💰 getCryptos() called")
+        return try {
+            Log.d(TAG, "🌐 Making CoinGecko API call for crypto markets...")
+            val response = cryptoService.getMarkets(
+                currency = "inr",
+                perPage = 15,
+                page = 1
+            )
+            
+            Log.d(TAG, "📡 CoinGecko Response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+            
+            if (response.isSuccessful && response.body() != null) {
+                val markets = response.body()!!
+                Log.d(TAG, "✅ Got ${markets.size} crypto coins")
+                
+                val cryptos = markets.mapNotNull { market ->
+                    val price = market.current_price ?: return@mapNotNull null
+                    val change24h = market.price_change_percentage_24h ?: 0.0
+                    
+                    Crypto(
+                        id = market.id,
+                        symbol = market.symbol.uppercase(),
+                        name = market.name,
+                        currentPrice = price,
+                        priceChange24h = change24h,
+                        marketCap = market.market_cap,
+                        imageUrl = market.image
+                    )
+                }
+                
+                Log.d(TAG, "📊 Converted to ${cryptos.size} Crypto objects")
+                Result.Success(cryptos)
+            } else {
+                Log.e(TAG, "❌ CoinGecko API failed - code: ${response.code()}")
+                Result.Error("Failed to fetch crypto data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception in getCryptos: ${e.javaClass.simpleName}: ${e.message}", e)
+            Result.Error("Failed to fetch crypto data: ${e.message}", e)
+        }
+    }
 }
 
 // ============= Extension Functions for Mapping =============
@@ -855,52 +903,3 @@ private fun CachedStockEntity.toDomainModel() = Stock(
     previousClose = previousClose,
     volume = volume
 )
-
-    // ============= Cryptocurrency Data =============
-    
-    /**
-     * Get top cryptocurrencies with INR pricing
-     */
-    suspend fun getCryptos(): Result<List<Crypto>> {
-        Log.d(TAG, "💰 getCryptos() called")
-        return try {
-            Log.d(TAG, "🌐 Making CoinGecko API call for crypto markets...")
-            val response = cryptoService.getMarkets(
-                currency = "inr",
-                perPage = 15,
-                page = 1
-            )
-            
-            Log.d(TAG, "📡 CoinGecko Response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
-            
-            if (response.isSuccessful && response.body() != null) {
-                val markets = response.body()!!
-                Log.d(TAG, "✅ Got ${markets.size} crypto coins")
-                
-                val cryptos = markets.mapNotNull { market ->
-                    val price = market.current_price ?: return@mapNotNull null
-                    val change24h = market.price_change_percentage_24h ?: 0.0
-                    
-                    Crypto(
-                        id = market.id,
-                        symbol = market.symbol.uppercase(),
-                        name = market.name,
-                        currentPrice = price,
-                        priceChange24h = change24h,
-                        marketCap = market.market_cap,
-                        imageUrl = market.image
-                    )
-                }
-                
-                Log.d(TAG, "📊 Converted to ${cryptos.size} Crypto objects")
-                Result.Success(cryptos)
-            } else {
-                Log.e(TAG, "❌ CoinGecko API failed - code: ${response.code()}")
-                Result.Error("Failed to fetch crypto data")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Exception in getCryptos: ${e.javaClass.simpleName}: ${e.message}", e)
-            Result.Error("Failed to fetch crypto data: ${e.message}", e)
-        }
-    }
-
