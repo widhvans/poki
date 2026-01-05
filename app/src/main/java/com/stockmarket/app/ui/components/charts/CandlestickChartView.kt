@@ -316,9 +316,17 @@ private fun updateCombinedChart(
         combinedData.setData(LineData(lineDataSets.toList()))
     }
     
-    // X axis formatter
+    // Detect if intraday (timestamps within same day)
+    val isIntraday = candles.size >= 2 && 
+        (candles.last().timestamp - candles.first().timestamp) < 86400000L
+    
+    // X axis formatter - use time for intraday, date for longer periods
     chart.xAxis.valueFormatter = object : ValueFormatter() {
-        private val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
+        private val dateFormat = if (isIntraday) 
+            SimpleDateFormat("HH:mm", Locale.getDefault())
+        else 
+            SimpleDateFormat("dd MMM", Locale.getDefault())
+        
         override fun getFormattedValue(value: Float): String {
             val index = value.toInt()
             return if (index >= 0 && index < candles.size) {
@@ -329,10 +337,16 @@ private fun updateCombinedChart(
     
     chart.data = combinedData
     
-    if (candles.size > 30) {
-        chart.moveViewToX((candles.size - 30).toFloat())
-        chart.setVisibleXRangeMaximum(30f)
+    // Show last 50 candles initially but allow unlimited scrolling
+    val visibleCount = minOf(50, candles.size)
+    if (candles.size > visibleCount) {
+        chart.setVisibleXRangeMinimum(10f) // Minimum 10 candles visible
+        chart.setVisibleXRangeMaximum(200f) // Maximum 200 candles can be visible
+        chart.moveViewToX((candles.size - visibleCount).toFloat())
     }
+    
+    // Enable auto-scale for Y axis when scrolling
+    chart.isAutoScaleMinMaxEnabled = true
     
     chart.invalidate()
 }

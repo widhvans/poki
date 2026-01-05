@@ -87,13 +87,18 @@ enum class ChartTimeframe(
     val range: String,
     val interval: String
 ) {
+    FIVE_MIN("5m", "1d", "1m"),
+    TEN_MIN("10m", "1d", "2m"),
+    THIRTY_MIN("30m", "1d", "5m"),
+    ONE_HOUR("1H", "1d", "15m"),
     ONE_DAY("1D", "1d", "5m"),
     FIVE_DAYS("5D", "5d", "15m"),
     ONE_MONTH("1M", "1mo", "1d"),
     THREE_MONTHS("3M", "3mo", "1d"),
     SIX_MONTHS("6M", "6mo", "1d"),
     ONE_YEAR("1Y", "1y", "1wk"),
-    FIVE_YEARS("5Y", "5y", "1mo")
+    FIVE_YEARS("5Y", "5y", "1mo"),
+    MAX("MAX", "max", "1mo")
 }
 
 /**

@@ -1,6 +1,8 @@
 package com.stockmarket.app.ui.screens.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -21,9 +23,10 @@ import androidx.compose.ui.unit.dp
 import com.stockmarket.app.domain.models.Stock
 import com.stockmarket.app.ui.components.*
 import com.stockmarket.app.ui.theme.*
+import com.stockmarket.app.ui.screens.logs.LogViewerActivity
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     onStockClick: (String) -> Unit,
@@ -31,6 +34,7 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.isLoading,
@@ -50,7 +54,10 @@ fun HomeScreen(
         ) {
             // App Bar with Search
             item {
-                HomeAppBar(onSearchClick = onSearchClick)
+                HomeAppBar(
+                    onSearchClick = onSearchClick,
+                    onLongPressSearch = { LogViewerActivity.start(context) }
+                )
             }
             
             // Market Indices Ticker
@@ -145,10 +152,11 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun HomeAppBar(
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    onLongPressSearch: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -180,10 +188,18 @@ private fun HomeAppBar(
                     )
                 }
                 
-                IconButton(onClick = onSearchClick) {
+                // Search icon with long press support for logs
+                Box(
+                    modifier = Modifier
+                        .combinedClickable(
+                            onClick = onSearchClick,
+                            onLongClick = onLongPressSearch
+                        )
+                        .padding(12.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
+                        contentDescription = "Search (Long press for logs)",
                         tint = TextPrimary
                     )
                 }
