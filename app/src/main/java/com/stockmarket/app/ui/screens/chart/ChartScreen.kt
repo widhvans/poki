@@ -82,7 +82,7 @@ fun ChartScreen(
                 )
             } else {
                 // Chart with vertical scale slider
-                var scaleY by remember { mutableFloatStateOf(1f) }
+                var scaleY by remember { mutableStateOf(1f) }
                 
                 Row(
                     modifier = Modifier
@@ -119,10 +119,7 @@ fun ChartScreen(
                             fontWeight = FontWeight.Bold
                         )
                         
-                        // Vertical slider (rotated)
-                        androidx.compose.ui.graphics.graphicsLayer {
-                            rotationZ = -90f
-                        }
+                        // Vertical slider for scale control
                         Slider(
                             value = scaleY,
                             onValueChange = { scaleY = it },
