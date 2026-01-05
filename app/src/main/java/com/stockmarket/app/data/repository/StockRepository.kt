@@ -1,5 +1,6 @@
 package com.stockmarket.app.data.repository
 
+import android.util.Log
 import com.stockmarket.app.data.api.StockApiService
 import com.stockmarket.app.data.api.YahooFinanceService
 import com.stockmarket.app.data.api.models.*
@@ -7,6 +8,8 @@ import com.stockmarket.app.data.local.*
 import com.stockmarket.app.domain.models.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+private const val TAG = "StockRepository"
 
 /**
  * Result wrapper for API calls
@@ -29,32 +32,47 @@ class StockRepository(
     private val recentSearchDao = database.recentSearchDao()
     private val cachedStockDao = database.cachedStockDao()
     
+    init {
+        Log.d(TAG, "📦 StockRepository initialized")
+    }
+    
     // ============= Stock Quotes =============
     
     /**
      * Get stock quote by symbol
      */
     suspend fun getStockQuote(symbol: String): Result<Stock> {
+        Log.d(TAG, "📊 getStockQuote() called for symbol: $symbol")
         return try {
+            Log.d(TAG, "🌐 Making API call to getStockQuote...")
             val response = apiService.getStockQuote(symbol)
+            Log.d(TAG, "📡 API Response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+            
             if (response.isSuccessful && response.body() != null) {
                 val quote = response.body()!!
+                Log.d(TAG, "✅ Got stock quote: ${quote.symbol} @ ${quote.lastPrice}")
                 val stock = quote.toDomainModel()
                 
                 // Cache the stock data
                 cachedStockDao.cacheStock(stock.toCacheEntity())
+                Log.d(TAG, "💾 Cached stock data for: $symbol")
                 
                 Result.Success(stock)
             } else {
+                Log.w(TAG, "⚠️ Primary API failed, trying Yahoo Finance fallback...")
+                Log.w(TAG, "⚠️ Response error: ${response.errorBody()?.string()}")
                 // Try Yahoo Finance as fallback
                 getStockFromYahoo(symbol)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception in getStockQuote: ${e.javaClass.simpleName}: ${e.message}", e)
             // Try cached data
             val cached = cachedStockDao.getCachedStock(symbol)
             if (cached != null) {
+                Log.d(TAG, "📦 Using cached data for: $symbol")
                 Result.Success(cached.toDomainModel())
             } else {
+                Log.e(TAG, "❌ No cached data available for: $symbol")
                 Result.Error("Failed to fetch stock data: ${e.message}", e)
             }
         }
@@ -64,14 +82,19 @@ class StockRepository(
      * Fallback to Yahoo Finance
      */
     private suspend fun getStockFromYahoo(symbol: String): Result<Stock> {
+        Log.d(TAG, "🔄 Trying Yahoo Finance for: $symbol")
         return try {
             // Add .NS for NSE stocks
             val yahooSymbol = if (!symbol.contains(".")) "$symbol.NS" else symbol
+            Log.d(TAG, "🌐 Yahoo API call with symbol: $yahooSymbol")
+            
             val response = yahooService.getChartData(yahooSymbol, "1d", "1m")
+            Log.d(TAG, "📡 Yahoo Response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
             
             if (response.isSuccessful && response.body() != null) {
                 val data = response.body()!!
                 val result = data.chart.result?.firstOrNull()
+                Log.d(TAG, "📊 Yahoo chart result: ${result != null}")
                 
                 if (result != null) {
                     val quote = result.indicators.quote.firstOrNull()
@@ -80,6 +103,8 @@ class StockRepository(
                     val highs = quote?.high?.filterNotNull() ?: emptyList()
                     val lows = quote?.low?.filterNotNull() ?: emptyList()
                     val volumes = quote?.volume?.filterNotNull() ?: emptyList()
+                    
+                    Log.d(TAG, "📈 Yahoo data - closes: ${closes.size}, opens: ${opens.size}")
                     
                     val lastPrice = closes.lastOrNull() ?: result.meta.regularMarketPrice
                     val change = lastPrice - result.meta.previousClose
@@ -97,14 +122,19 @@ class StockRepository(
                         previousClose = result.meta.previousClose,
                         volume = volumes.sum()
                     )
+                    Log.d(TAG, "✅ Yahoo success: ${stock.symbol} @ ${stock.lastPrice}")
                     Result.Success(stock)
                 } else {
+                    Log.e(TAG, "❌ No data from Yahoo Finance - result is null")
                     Result.Error("No data from Yahoo Finance")
                 }
             } else {
+                Log.e(TAG, "❌ Yahoo Finance API failed - code: ${response.code()}")
+                Log.e(TAG, "❌ Yahoo error body: ${response.errorBody()?.string()}")
                 Result.Error("Yahoo Finance API failed")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Yahoo fallback exception: ${e.javaClass.simpleName}: ${e.message}", e)
             Result.Error("Yahoo fallback failed: ${e.message}", e)
         }
     }
@@ -118,23 +148,26 @@ class StockRepository(
         symbol: String,
         timeframe: ChartTimeframe
     ): Result<List<CandleData>> {
+        Log.d(TAG, "📊 getHistoricalData() for $symbol, timeframe: ${timeframe.label}")
         return try {
-            // Try primary API first
+            Log.d(TAG, "🌐 Primary API - range: ${timeframe.range}, interval: ${timeframe.interval}")
             val response = apiService.getHistoricalData(
                 symbol = symbol,
                 range = timeframe.range,
                 interval = timeframe.interval
             )
+            Log.d(TAG, "📡 Historical API Response - isSuccessful: ${response.isSuccessful}")
             
             if (response.isSuccessful && response.body() != null) {
                 val data = response.body()!!.data
+                Log.d(TAG, "✅ Got ${data.size} candles from primary API")
                 Result.Success(data.map { it.toDomainModel() })
             } else {
-                // Fallback to Yahoo
+                Log.w(TAG, "⚠️ Primary API failed, trying Yahoo...")
                 getHistoricalFromYahoo(symbol, timeframe)
             }
         } catch (e: Exception) {
-            // Try Yahoo as fallback
+            Log.e(TAG, "❌ Historical data exception: ${e.message}", e)
             getHistoricalFromYahoo(symbol, timeframe)
         }
     }
@@ -143,13 +176,17 @@ class StockRepository(
         symbol: String,
         timeframe: ChartTimeframe
     ): Result<List<CandleData>> {
+        Log.d(TAG, "🔄 Yahoo historical for $symbol")
         return try {
             val yahooSymbol = if (!symbol.contains(".")) "$symbol.NS" else symbol
+            Log.d(TAG, "🌐 Yahoo chart API: $yahooSymbol, range: ${timeframe.range}")
+            
             val response = yahooService.getChartData(
                 symbol = yahooSymbol,
                 range = timeframe.range,
                 interval = timeframe.interval
             )
+            Log.d(TAG, "📡 Yahoo historical - isSuccessful: ${response.isSuccessful}")
             
             if (response.isSuccessful && response.body() != null) {
                 val chartData = response.body()!!.chart.result?.firstOrNull()
@@ -157,6 +194,7 @@ class StockRepository(
                 if (chartData != null) {
                     val timestamps = chartData.timestamp ?: emptyList()
                     val quote = chartData.indicators.quote.firstOrNull()
+                    Log.d(TAG, "📊 Yahoo timestamps: ${timestamps.size}")
                     
                     val candles = timestamps.mapIndexedNotNull { index, timestamp ->
                         val open = quote?.open?.getOrNull(index) ?: return@mapIndexedNotNull null
@@ -166,7 +204,7 @@ class StockRepository(
                         val volume = quote.volume?.getOrNull(index) ?: 0L
                         
                         CandleData(
-                            timestamp = timestamp * 1000, // Convert to milliseconds
+                            timestamp = timestamp * 1000,
                             open = open.toFloat(),
                             high = high.toFloat(),
                             low = low.toFloat(),
@@ -174,14 +212,18 @@ class StockRepository(
                             volume = volume
                         )
                     }
+                    Log.d(TAG, "✅ Yahoo historical success: ${candles.size} candles")
                     Result.Success(candles)
                 } else {
+                    Log.e(TAG, "❌ No Yahoo historical data available")
                     Result.Error("No historical data available")
                 }
             } else {
+                Log.e(TAG, "❌ Yahoo historical API failed: ${response.code()}")
                 Result.Error("Failed to fetch historical data")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Yahoo historical exception: ${e.message}", e)
             Result.Error("Failed to fetch historical data: ${e.message}", e)
         }
     }
@@ -192,21 +234,28 @@ class StockRepository(
      * Get market indices (NIFTY 50, SENSEX, etc.)
      */
     suspend fun getMarketIndices(): Result<List<MarketIndex>> {
+        Log.d(TAG, "📊 getMarketIndices() called")
         return try {
+            Log.d(TAG, "🌐 Fetching indices from primary API...")
             val response = apiService.getIndices()
+            Log.d(TAG, "📡 Indices API - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+            
             if (response.isSuccessful && response.body() != null) {
                 val indices = response.body()!!.data.map { it.toDomainModel() }
+                Log.d(TAG, "✅ Got ${indices.size} indices")
                 Result.Success(indices)
             } else {
-                // Return default indices from Yahoo
+                Log.w(TAG, "⚠️ Primary indices API failed, trying Yahoo...")
                 getIndicesFromYahoo()
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Indices exception: ${e.message}", e)
             getIndicesFromYahoo()
         }
     }
     
     private suspend fun getIndicesFromYahoo(): Result<List<MarketIndex>> {
+        Log.d(TAG, "🔄 Getting indices from Yahoo...")
         val indices = mutableListOf<MarketIndex>()
         
         val symbolMap = mapOf(
@@ -217,7 +266,9 @@ class StockRepository(
         
         for ((symbol, name) in symbolMap) {
             try {
+                Log.d(TAG, "🌐 Yahoo index: $symbol")
                 val response = yahooService.getChartData(symbol, "1d", "1m")
+                
                 if (response.isSuccessful && response.body() != null) {
                     val data = response.body()!!.chart.result?.firstOrNull()
                     if (data != null) {
@@ -239,16 +290,19 @@ class StockRepository(
                                 previousClose = prevClose
                             )
                         )
+                        Log.d(TAG, "✅ Got $name @ $lastPrice")
                     }
                 }
             } catch (e: Exception) {
-                // Skip this index
+                Log.e(TAG, "❌ Failed to get index $symbol: ${e.message}")
             }
         }
         
+        Log.d(TAG, "📊 Total indices fetched: ${indices.size}")
         return if (indices.isNotEmpty()) {
             Result.Success(indices)
         } else {
+            Log.e(TAG, "❌ No indices fetched from Yahoo")
             Result.Error("Failed to fetch market indices")
         }
     }
@@ -259,10 +313,15 @@ class StockRepository(
      * Get top gainers and losers
      */
     suspend fun getTopMovers(): Result<Pair<List<Stock>, List<Stock>>> {
+        Log.d(TAG, "📊 getTopMovers() called")
         return try {
+            Log.d(TAG, "🌐 Fetching top movers...")
             val response = apiService.getTopMovers()
+            Log.d(TAG, "📡 Top movers API - isSuccessful: ${response.isSuccessful}")
+            
             if (response.isSuccessful && response.body() != null) {
                 val movers = response.body()!!
+                Log.d(TAG, "✅ Got ${movers.gainers.size} gainers, ${movers.losers.size} losers")
                 Result.Success(
                     Pair(
                         movers.gainers.map { it.toDomainModel() },
@@ -270,9 +329,11 @@ class StockRepository(
                     )
                 )
             } else {
+                Log.e(TAG, "❌ Top movers API failed: ${response.code()}")
                 Result.Error("Failed to fetch top movers")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Top movers exception: ${e.message}", e)
             Result.Error("Failed to fetch top movers: ${e.message}", e)
         }
     }
@@ -283,14 +344,23 @@ class StockRepository(
      * Get NIFTY 50 stocks
      */
     suspend fun getNifty50(): Result<List<Stock>> {
+        Log.d(TAG, "📊 getNifty50() called")
         return try {
+            Log.d(TAG, "🌐 Fetching NIFTY 50 stocks...")
             val response = apiService.getNifty50()
+            Log.d(TAG, "📡 NIFTY 50 API - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+            
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!.data.map { it.toDomainModel() })
+                val stocks = response.body()!!.data.map { it.toDomainModel() }
+                Log.d(TAG, "✅ Got ${stocks.size} NIFTY 50 stocks")
+                Result.Success(stocks)
             } else {
+                Log.e(TAG, "❌ NIFTY 50 API failed: ${response.code()}")
+                Log.e(TAG, "❌ Error body: ${response.errorBody()?.string()}")
                 Result.Error("Failed to fetch NIFTY 50")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ NIFTY 50 exception: ${e.javaClass.simpleName}: ${e.message}", e)
             Result.Error("Failed to fetch NIFTY 50: ${e.message}", e)
         }
     }
@@ -299,14 +369,20 @@ class StockRepository(
      * Get Bank NIFTY stocks
      */
     suspend fun getBankNifty(): Result<List<Stock>> {
+        Log.d(TAG, "📊 getBankNifty() called")
         return try {
             val response = apiService.getBankNifty()
+            Log.d(TAG, "📡 Bank NIFTY API - isSuccessful: ${response.isSuccessful}")
+            
             if (response.isSuccessful && response.body() != null) {
+                Log.d(TAG, "✅ Got Bank NIFTY stocks")
                 Result.Success(response.body()!!.data.map { it.toDomainModel() })
             } else {
+                Log.e(TAG, "❌ Bank NIFTY API failed")
                 Result.Error("Failed to fetch Bank NIFTY")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Bank NIFTY exception: ${e.message}", e)
             Result.Error("Failed to fetch Bank NIFTY: ${e.message}", e)
         }
     }
@@ -315,14 +391,20 @@ class StockRepository(
      * Get stocks by sector
      */
     suspend fun getSectorStocks(sector: Sector): Result<List<Stock>> {
+        Log.d(TAG, "📊 getSectorStocks() for: ${sector.displayName}")
         return try {
             val response = apiService.getSectorStocks(sector.apiValue)
+            Log.d(TAG, "📡 Sector API - isSuccessful: ${response.isSuccessful}")
+            
             if (response.isSuccessful && response.body() != null) {
+                Log.d(TAG, "✅ Got sector stocks")
                 Result.Success(response.body()!!.data.map { it.toDomainModel() })
             } else {
+                Log.e(TAG, "❌ Sector API failed")
                 Result.Error("Failed to fetch ${sector.displayName} stocks")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Sector exception: ${e.message}", e)
             Result.Error("Failed to fetch sector stocks: ${e.message}", e)
         }
     }
@@ -333,17 +415,24 @@ class StockRepository(
      * Search stocks
      */
     suspend fun searchStocks(query: String): Result<List<SearchResult>> {
+        Log.d(TAG, "🔍 searchStocks() for: $query")
         return try {
             // Save to recent searches
             recentSearchDao.addSearch(RecentSearchEntity(query = query))
             
             val response = apiService.searchStocks(query)
+            Log.d(TAG, "📡 Search API - isSuccessful: ${response.isSuccessful}")
+            
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!.data.map { it.toDomainModel() })
+                val results = response.body()!!.data.map { it.toDomainModel() }
+                Log.d(TAG, "✅ Got ${results.size} search results")
+                Result.Success(results)
             } else {
+                Log.e(TAG, "❌ Search API failed")
                 Result.Error("No results found")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Search exception: ${e.message}", e)
             Result.Error("Search failed: ${e.message}", e)
         }
     }
@@ -399,6 +488,7 @@ class StockRepository(
      * Add stock to watchlist
      */
     suspend fun addToWatchlist(symbol: String, companyName: String) {
+        Log.d(TAG, "➕ Adding to watchlist: $symbol")
         watchlistDao.addToWatchlist(
             WatchlistItemEntity(
                 symbol = symbol,
@@ -411,6 +501,7 @@ class StockRepository(
      * Remove stock from watchlist
      */
     suspend fun removeFromWatchlist(symbol: String) {
+        Log.d(TAG, "➖ Removing from watchlist: $symbol")
         watchlistDao.removeFromWatchlist(symbol)
     }
     
