@@ -214,6 +214,8 @@ private fun createCombinedChart(context: Context): CombinedChart {
             textColor = Color.parseColor("#78909C")
             setDrawAxisLine(false)
             granularity = 1f
+            // Add space after last candle to prevent cutoff
+            spaceMax = 2f
         }
         
         axisLeft.apply {
@@ -234,8 +236,13 @@ private fun createCombinedChart(context: Context): CombinedChart {
         setTouchEnabled(true)
         isDragEnabled = true
         setScaleEnabled(true)
-        setPinchZoom(true)
+        setPinchZoom(false) // Disable pinch zoom for unified, enable separate X/Y
+        isScaleXEnabled = true
+        isScaleYEnabled = true // Enable vertical zoom for candle size adjustment
         animateX(500)
+        
+        // Extra right offset to prevent latest candle cutoff
+        setExtraOffsets(0f, 10f, 32f, 10f)
     }
 }
 

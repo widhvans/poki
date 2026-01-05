@@ -1,5 +1,6 @@
 package com.stockmarket.app.ui.screens.chart
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.stockmarket.app.data.repository.Result
@@ -7,10 +8,14 @@ import com.stockmarket.app.data.repository.StockRepository
 import com.stockmarket.app.domain.models.CandleData
 import com.stockmarket.app.domain.models.ChartTimeframe
 import com.stockmarket.app.domain.models.Stock
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+private const val TAG = "ChartViewModel"
 
 data class ChartUiState(
     val isLoading: Boolean = true,
@@ -33,6 +38,9 @@ class ChartViewModel(
     
     private val _uiState = MutableStateFlow(ChartUiState())
     val uiState: StateFlow<ChartUiState> = _uiState.asStateFlow()
+    
+    // Auto-refresh job for live candle updates
+    private var autoRefreshJob: Job? = null
     
     init {
         loadStock()
@@ -67,6 +75,8 @@ class ChartViewModel(
                         candles = result.data,
                         isLoading = false
                     )
+                    // Start auto-refresh for intraday timeframes
+                    startAutoRefreshIfNeeded()
                 }
                 is Result.Error -> {
                     _uiState.value = _uiState.value.copy(
@@ -76,6 +86,54 @@ class ChartViewModel(
                 }
                 else -> {}
             }
+        }
+    }
+    
+    /**
+     * Start auto-refresh for intraday timeframes to show live candle movement
+     */
+    private fun startAutoRefreshIfNeeded() {
+        autoRefreshJob?.cancel()
+        
+        val timeframe = _uiState.value.selectedTimeframe
+        val isIntraday = timeframe in listOf(
+            ChartTimeframe.FIVE_MIN,
+            ChartTimeframe.TEN_MIN,
+            ChartTimeframe.THIRTY_MIN,
+            ChartTimeframe.ONE_HOUR,
+            ChartTimeframe.ONE_DAY
+        )
+        
+        if (isIntraday) {
+            Log.d(TAG, "⏱️ Starting live candle refresh for ${timeframe.label}")
+            autoRefreshJob = viewModelScope.launch {
+                while (true) {
+                    delay(10_000) // Refresh every 10 seconds for live updates
+                    Log.d(TAG, "⏱️ Auto-refreshing chart data...")
+                    refreshChartDataSilently()
+                }
+            }
+        } else {
+            Log.d(TAG, "📊 Non-intraday timeframe, no auto-refresh needed")
+        }
+    }
+    
+    /**
+     * Refresh chart data without showing loading indicator
+     */
+    private suspend fun refreshChartDataSilently() {
+        when (val result = repository.getHistoricalData(
+            symbol = symbol,
+            timeframe = _uiState.value.selectedTimeframe
+        )) {
+            is Result.Success -> {
+                _uiState.value = _uiState.value.copy(candles = result.data)
+                Log.d(TAG, "✅ Chart data refreshed with ${result.data.size} candles")
+            }
+            is Result.Error -> {
+                Log.e(TAG, "❌ Silent refresh failed: ${result.message}")
+            }
+            else -> {}
         }
     }
     
@@ -121,5 +179,11 @@ class ChartViewModel(
     fun refresh() {
         loadStock()
         loadChartData()
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        Log.d(TAG, "🗑️ ChartViewModel cleared, stopping auto-refresh")
+        autoRefreshJob?.cancel()
     }
 }

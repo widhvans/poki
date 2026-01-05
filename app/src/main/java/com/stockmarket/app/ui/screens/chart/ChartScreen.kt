@@ -85,7 +85,7 @@ fun ChartScreen(
                     candles = uiState.candles,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(400.dp)
+                        .height(500.dp)
                         .padding(horizontal = 8.dp),
                     showVolume = uiState.showVolume,
                     showMA5 = uiState.showMA5,

@@ -1,8 +1,11 @@
 package com.stockmarket.app.ui.screens.logs
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -14,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -21,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +68,7 @@ fun LogViewerScreen(onBackClick: () -> Unit) {
     var filter by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
+    val context = LocalContext.current
     
     // Load logs on launch
     LaunchedEffect(Unit) {
@@ -90,6 +96,18 @@ fun LogViewerScreen(onBackClick: () -> Unit) {
                     }
                 },
                 actions = {
+                    // Copy logs button
+                    IconButton(onClick = {
+                        val logsText = filteredLogs.joinToString("\n") { log ->
+                            "${log.level}/${log.tag}: ${log.message}"
+                        }
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("App Logs", logsText)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Logs copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(Icons.Default.ContentCopy, "Copy Logs", tint = TextPrimary)
+                    }
                     IconButton(onClick = {
                         scope.launch {
                             isLoading = true

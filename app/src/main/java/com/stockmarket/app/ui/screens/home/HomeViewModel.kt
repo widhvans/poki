@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.stockmarket.app.data.repository.Result
 import com.stockmarket.app.data.repository.StockRepository
+import com.stockmarket.app.domain.models.Crypto
 import com.stockmarket.app.domain.models.MarketIndex
 import com.stockmarket.app.domain.models.Stock
 import kotlinx.coroutines.delay
@@ -21,6 +22,7 @@ data class HomeUiState(
     val topGainers: List<Stock> = emptyList(),
     val topLosers: List<Stock> = emptyList(),
     val nifty50Stocks: List<Stock> = emptyList(),
+    val cryptos: List<Crypto> = emptyList(),
     val error: String? = null
 )
 
@@ -114,12 +116,29 @@ class HomeViewModel(
                 else -> {}
             }
             
+            // Load Cryptocurrencies
+            Log.d(TAG, "💰 Fetching cryptocurrencies...")
+            when (val result = repository.getCryptos()) {
+                is Result.Success -> {
+                    Log.d(TAG, "✅ Cryptos loaded: ${result.data.size} coins")
+                    result.data.take(3).forEach { crypto ->
+                        Log.d(TAG, "  🪙 ${crypto.symbol}: ${crypto.formattedPrice} (${crypto.formattedChange})")
+                    }
+                    _uiState.value = _uiState.value.copy(cryptos = result.data)
+                }
+                is Result.Error -> {
+                    Log.e(TAG, "❌ Failed to load cryptos: ${result.message}")
+                }
+                else -> {}
+            }
+            
             // Final state
             Log.d(TAG, "📊 FINAL STATE:")
             Log.d(TAG, "  - Indices: ${_uiState.value.indices.size}")
             Log.d(TAG, "  - Top Gainers: ${_uiState.value.topGainers.size}")
             Log.d(TAG, "  - Top Losers: ${_uiState.value.topLosers.size}")
             Log.d(TAG, "  - NIFTY 50 Stocks: ${_uiState.value.nifty50Stocks.size}")
+            Log.d(TAG, "  - Cryptos: ${_uiState.value.cryptos.size}")
             Log.d(TAG, "  - Error: ${_uiState.value.error ?: "none"}")
             Log.d(TAG, "  - Is Loading: ${_uiState.value.isLoading}")
         }

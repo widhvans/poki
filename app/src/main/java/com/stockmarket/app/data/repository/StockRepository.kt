@@ -788,7 +788,7 @@ class StockRepository(
             Log.d(TAG, "🌐 Making CoinGecko API call for crypto markets...")
             val response = cryptoService.getMarkets(
                 currency = "inr",
-                perPage = 15,
+                perPage = 50,
                 page = 1
             )
             

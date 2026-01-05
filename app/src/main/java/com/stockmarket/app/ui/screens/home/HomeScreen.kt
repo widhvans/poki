@@ -105,6 +105,20 @@ fun HomeScreen(
                 }
             }
             
+            // Cryptocurrencies Section
+            item {
+                if (uiState.cryptos.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SectionHeader(
+                        title = "💰 Crypto",
+                        actionText = "View All",
+                        onActionClick = { onViewAllClick("crypto") }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    CryptoRow(cryptos = uiState.cryptos.take(20))
+                }
+            }
+            
             // NIFTY 50 Stocks
             item {
                 Spacer(modifier = Modifier.height(24.dp))
