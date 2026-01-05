@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background Circle -->
+    <path
+        android:fillColor="#1A2C50"
+        android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0"/>
+    
+    <!-- Chart Lines (Candlestick representation) -->
+    <!-- Green candle -->
+    <path
+        android:fillColor="#26A69A"
+        android:pathData="M30,65 L30,45 L35,45 L35,65 Z"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M32.5,45 L32.5,35"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M32.5,65 L32.5,70"/>
+    
+    <!-- Red candle -->
+    <path
+        android:fillColor="#EF5350"
+        android:pathData="M42,55 L42,70 L47,70 L47,55 Z"/>
+    <path
+        android:strokeColor="#EF5350"
+        android:strokeWidth="2"
+        android:pathData="M44.5,55 L44.5,45"/>
+    <path
+        android:strokeColor="#EF5350"
+        android:strokeWidth="2"
+        android:pathData="M44.5,70 L44.5,75"/>
+    
+    <!-- Green candle -->
+    <path
+        android:fillColor="#26A69A"
+        android:pathData="M54,60 L54,40 L59,40 L59,60 Z"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M56.5,40 L56.5,30"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M56.5,60 L56.5,68"/>
+    
+    <!-- Green candle (going up) -->
+    <path
+        android:fillColor="#26A69A"
+        android:pathData="M66,50 L66,35 L71,35 L71,50 Z"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M68.5,35 L68.5,25"/>
+    <path
+        android:strokeColor="#26A69A"
+        android:strokeWidth="2"
+        android:pathData="M68.5,50 L68.5,58"/>
+    
+    <!-- Upward Arrow -->
+    <path
+        android:fillColor="#00C853"
+        android:pathData="M76,30 L82,42 L79,42 L79,55 L73,55 L73,42 L70,42 Z"/>
+    
+</vector>
