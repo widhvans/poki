@@ -177,7 +177,8 @@ fun AdvancedChartView(
     showVolume: Boolean = true,
     showMA5: Boolean = false,
     showMA10: Boolean = false,
-    showMA20: Boolean = false
+    showMA20: Boolean = false,
+    scaleY: Float = 1f
 ) {
     val context = LocalContext.current
     
@@ -186,7 +187,7 @@ fun AdvancedChartView(
             createCombinedChart(ctx)
         },
         update = { chart ->
-            updateCombinedChart(chart, candles, showVolume, showMA5, showMA10, showMA20)
+            updateCombinedChart(chart, candles, showVolume, showMA5, showMA10, showMA20, scaleY)
         },
         modifier = modifier
     )
@@ -254,7 +255,8 @@ private fun updateCombinedChart(
     showVolume: Boolean,
     showMA5: Boolean,
     showMA10: Boolean,
-    showMA20: Boolean
+    showMA20: Boolean,
+    scaleY: Float = 1f
 ) {
     if (candles.isEmpty()) {
         chart.clear()
@@ -353,6 +355,9 @@ private fun updateCombinedChart(
         chart.setVisibleXRangeMaximum(200f) // Maximum 200 candles can be visible
         chart.moveViewToX((candles.size - visibleCount).toFloat())
     }
+    
+    // Apply Y-axis scale from slider
+    chart.viewPortHandler.setZoom(1f, scaleY, 0f, 0f)
     
     // Enable auto-scale for Y axis when scrolling
     chart.isAutoScaleMinMaxEnabled = true

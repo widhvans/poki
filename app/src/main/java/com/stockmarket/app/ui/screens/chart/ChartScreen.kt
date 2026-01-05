@@ -81,17 +81,69 @@ fun ChartScreen(
                     onRetry = { viewModel.refresh() }
                 )
             } else {
-                AdvancedChartView(
-                    candles = uiState.candles,
+                // Chart with vertical scale slider
+                var scaleY by remember { mutableFloatStateOf(1f) }
+                
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(500.dp)
-                        .padding(horizontal = 8.dp),
-                    showVolume = uiState.showVolume,
-                    showMA5 = uiState.showMA5,
-                    showMA10 = uiState.showMA10,
-                    showMA20 = uiState.showMA20
-                )
+                        .height(500.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Chart takes most of the width
+                    AdvancedChartView(
+                        candles = uiState.candles,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(start = 8.dp),
+                        showVolume = uiState.showVolume,
+                        showMA5 = uiState.showMA5,
+                        showMA10 = uiState.showMA10,
+                        showMA20 = uiState.showMA20,
+                        scaleY = scaleY
+                    )
+                    
+                    // Vertical slider for candle height
+                    Column(
+                        modifier = Modifier
+                            .width(40.dp)
+                            .fillMaxHeight()
+                            .padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "+",
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Vertical slider (rotated)
+                        androidx.compose.ui.graphics.graphicsLayer {
+                            rotationZ = -90f
+                        }
+                        Slider(
+                            value = scaleY,
+                            onValueChange = { scaleY = it },
+                            valueRange = 0.5f..3f,
+                            modifier = Modifier
+                                .height(200.dp)
+                                .width(40.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = AccentBlue,
+                                activeTrackColor = AccentBlue,
+                                inactiveTrackColor = SurfaceLight
+                            )
+                        )
+                        
+                        Text(
+                            text = "-",
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
             
             Spacer(modifier = Modifier.height(16.dp))

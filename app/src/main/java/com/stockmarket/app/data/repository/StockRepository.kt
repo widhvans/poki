@@ -38,6 +38,49 @@ class StockRepository(
         Log.d(TAG, "📦 StockRepository initialized")
     }
     
+    // Crypto ID to Yahoo Finance symbol mapping
+    private val cryptoSymbolMap = mapOf(
+        "bitcoin" to "BTC-USD",
+        "ethereum" to "ETH-USD",
+        "tether" to "USDT-USD",
+        "binancecoin" to "BNB-USD",
+        "ripple" to "XRP-USD",
+        "solana" to "SOL-USD",
+        "dogecoin" to "DOGE-USD",
+        "polkadot" to "DOT-USD",
+        "cardano" to "ADA-USD",
+        "avalanche-2" to "AVAX-USD",
+        "chainlink" to "LINK-USD",
+        "uniswap" to "UNI-USD",
+        "litecoin" to "LTC-USD",
+        "wrapped-bitcoin" to "WBTC-USD",
+        "shiba-inu" to "SHIB-USD",
+        "matic-network" to "MATIC-USD",
+        "stellar" to "XLM-USD",
+        "tron" to "TRX-USD",
+        "cosmos" to "ATOM-USD"
+    )
+    
+    /**
+     * Convert symbol to Yahoo Finance compatible format
+     * - Crypto IDs (bitcoin, ethereum) → Yahoo crypto symbols (BTC-USD)
+     * - Indian stocks → Add .NS suffix
+     */
+    private fun toYahooSymbol(symbol: String): String {
+        // Check if it's a known crypto
+        val cryptoSymbol = cryptoSymbolMap[symbol.lowercase()]
+        if (cryptoSymbol != null) {
+            Log.d(TAG, "🪙 Crypto symbol mapped: $symbol → $cryptoSymbol")
+            return cryptoSymbol
+        }
+        // If already has suffix or is a crypto pair format, return as-is
+        if (symbol.contains(".") || symbol.contains("-")) {
+            return symbol
+        }
+        // Indian stock - add .NS
+        return "$symbol.NS"
+    }
+    
     // ============= Stock Quotes =============
     
     /**
@@ -86,8 +129,8 @@ class StockRepository(
     private suspend fun getStockFromYahoo(symbol: String): Result<Stock> {
         Log.d(TAG, "🔄 Trying Yahoo Finance for: $symbol")
         return try {
-            // Add .NS for NSE stocks
-            val yahooSymbol = if (!symbol.contains(".")) "$symbol.NS" else symbol
+            // Use toYahooSymbol for proper crypto/stock symbol mapping
+            val yahooSymbol = toYahooSymbol(symbol)
             Log.d(TAG, "🌐 Yahoo API call with symbol: $yahooSymbol")
             
             val response = yahooService.getChartData(yahooSymbol, "1d", "1m")
@@ -180,7 +223,7 @@ class StockRepository(
     ): Result<List<CandleData>> {
         Log.d(TAG, "🔄 Yahoo historical for $symbol")
         return try {
-            val yahooSymbol = if (!symbol.contains(".")) "$symbol.NS" else symbol
+            val yahooSymbol = toYahooSymbol(symbol)
             Log.d(TAG, "🌐 Yahoo chart API: $yahooSymbol, range: ${timeframe.range}")
             
             val response = yahooService.getChartData(

@@ -108,7 +108,7 @@ class ChartViewModel(
             Log.d(TAG, "⏱️ Starting live candle refresh for ${timeframe.label}")
             autoRefreshJob = viewModelScope.launch {
                 while (true) {
-                    delay(10_000) // Refresh every 10 seconds for live updates
+                    delay(1_000) // Refresh every 1 second for live candle movement
                     Log.d(TAG, "⏱️ Auto-refreshing chart data...")
                     refreshChartDataSilently()
                 }
